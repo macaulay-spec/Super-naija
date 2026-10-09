@@ -1,0 +1,26 @@
+{
+  "name": "ibadan-life",
+  "version": "1.0.0",
+  "description": "IBADAN LIFE - Browser-based 3D open-world Nigerian life simulation game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "server": "node server/index.js",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
+  }
+}
