@@ -6,6 +6,13 @@ and a **Node.js WebSocket** shared-world server for real multiplayer.
 
 > *"Lagos is a place. Ibadan is a people."*
 
+## 🎮 Play now
+
+**Live game with multiplayer:** https://vision-basket-wisconsin-attractions.trycloudflare.com
+
+*(Ephemeral Cloudflare quick tunnel — up while the sandbox server runs. For a permanent
+host, see "How to deploy with multiplayer" below.)*
+
 ## Features
 
 - **3D open world** — connected road grid, junctions, sidewalks, buildings, markets,
@@ -53,6 +60,19 @@ For development with hot reload:
 npm run dev          # Vite dev server
 npm run server       # multiplayer server (separate terminal)
 ```
+
+## How to deploy with multiplayer
+
+Any host that runs Node and supports WebSockets (Render, Railway, Fly.io, a VPS, …):
+
+```bash
+npm install
+npm run build
+PORT=8080 npm run server     # serves the game + multiplayer on one port
+```
+
+Open the host's public URL — the client detects the origin automatically and connects its
+WebSocket to the same host/port, so multiplayer turns on with no configuration.
 
 ## Controls
 
