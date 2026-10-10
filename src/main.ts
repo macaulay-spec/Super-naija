@@ -16,48 +16,106 @@ const game = new Game(canvas);
 (window as any).game = game; // debug
 
 let ready = false;
+let bootFailed = false;
+let entering = false; // guards against double-trigger (click + Enter)
+
+const isHidden = (el: HTMLElement) => el.classList.contains('hidden');
+
+function setLoadMessage(msg: string, isError = false) {
+  loadStatus.textContent = msg;
+  loadStatus.style.color = isError ? '#d64545' : '';
+}
 
 async function boot() {
   try {
     await game.init((pct, label) => {
       loadFill.style.width = pct + '%';
-      loadStatus.textContent = label;
+      setLoadMessage(label);
     });
     ready = true;
-    loadStatus.textContent = 'Tap to enter';
+    setLoadMessage('Tap to enter — or press Enter');
     enterBtn.classList.remove('hidden');
   } catch (err) {
+    bootFailed = true;
     console.error(err);
-    loadStatus.textContent = 'Failed to start: ' + (err as Error).message;
-    loadStatus.style.color = '#d64545';
+    setLoadMessage('Failed to start: ' + (err as Error).message, true);
+    // Give the player a way out instead of a dead screen.
+    enterBtn.classList.remove('hidden');
+    enterBtn.textContent = 'Retry';
   }
 }
 
-enterBtn.onclick = () => {
-  if (!ready) return;
-  game.audio.init();
-  game.audio.resume();
-  // Resume / create profile
-  const hasSave = game.loadProfile();
+// ------------------------------------------------------------
+// Shared entry path used by BOTH the button and the Enter key.
+// Never fails silently: always gives visible feedback.
+// ------------------------------------------------------------
+function tryEnter() {
+  if (entering) return;
+
+  // Not finished loading yet — tell the player instead of doing nothing.
+  if (!ready) {
+    if (bootFailed) {
+      // Re-run boot on retry.
+      bootFailed = false;
+      enterBtn.classList.add('hidden');
+      setLoadMessage('Retrying…');
+      boot();
+      return;
+    }
+    setLoadMessage('Still loading… please wait a moment.');
+    return;
+  }
+
+  entering = true;
+  enterBtn.disabled = true;
+
+  // Audio is best-effort: it must NEVER block entry.
+  try {
+    game.audio.init();
+    game.audio.resume();
+  } catch (err) {
+    console.warn('Audio init skipped:', err);
+  }
+
+  // Resume / create profile. loadProfile() is hardened and never throws.
+  let hasSave = false;
+  try {
+    hasSave = game.loadProfile();
+  } catch (err) {
+    console.error('loadProfile failed:', err);
+    hasSave = false;
+  }
+
   if (hasSave) {
     startGame();
   } else {
     loadingScreen.classList.add('hidden');
     setupScreen.classList.remove('hidden');
+    // Focus the name field so the player can type immediately.
+    const nameInput = document.getElementById('setup-name') as HTMLInputElement | null;
+    if (nameInput) setTimeout(() => nameInput.focus(), 50);
   }
-};
 
-document.getElementById('setup-start')!.onclick = () => {
+  entering = false;
+  enterBtn.disabled = false;
+}
+
+function submitSetup() {
   const name = (document.getElementById('setup-name') as HTMLInputElement).value.trim() || 'Player';
-  const skin = parseInt((document.getElementById('setup-skin') as HTMLInputElement).value);
-  const outfit = (document.getElementById('setup-outfit') as HTMLInputElement).value;
-  const hair = parseInt((document.getElementById('setup-hair') as HTMLSelectElement).value);
+  const skin = parseInt((document.getElementById('setup-skin') as HTMLInputElement).value) || 0;
+  const outfit = (document.getElementById('setup-outfit') as HTMLInputElement).value || 'default';
+  const hair = parseInt((document.getElementById('setup-hair') as HTMLSelectElement).value) || 0;
   game.createProfile(name, skin, outfit, hair);
   setupScreen.classList.add('hidden');
   startGame();
-};
+}
+
+enterBtn.onclick = tryEnter;
+
+document.getElementById('setup-start')!.onclick = submitSetup;
 
 function startGame() {
+  if (game.running) return;
   loadingScreen.classList.add('hidden');
   setupScreen.classList.add('hidden');
   hud.classList.remove('hidden');
@@ -70,6 +128,36 @@ function startGame() {
   // Broadcast player state ~8 times per second
   setInterval(() => game.broadcastState(), 125);
 }
+
+// ------------------------------------------------------------
+// Global Enter key handler — the core fix.
+// Works on the loading screen (enter) and the setup screen (submit).
+// ------------------------------------------------------------
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.keyCode !== 13) return;
+  if (game.running) return; // already in-game; Enter is not an entry action
+
+  // On the setup screen, Enter confirms the character and starts the game.
+  if (!isHidden(setupScreen)) {
+    e.preventDefault();
+    submitSetup();
+    return;
+  }
+
+  // On the loading screen, Enter is the same as tapping "Enter".
+  if (!isHidden(loadingScreen)) {
+    e.preventDefault();
+    tryEnter();
+  }
+});
+
+// Also allow Enter inside the setup name field to submit the form.
+document.getElementById('setup-name')?.addEventListener('keydown', (e) => {
+  if ((e as KeyboardEvent).key === 'Enter') {
+    e.preventDefault();
+    submitSetup();
+  }
+});
 
 // Auto-exit interior when standing on the exit trigger
 setInterval(() => {

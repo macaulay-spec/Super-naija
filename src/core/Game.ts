@@ -265,11 +265,20 @@ export class Game {
       if (!raw) return false;
       const p = JSON.parse(raw) as PlayerProfile;
       if (!p || !p.id) return false;
-      this.profile = p;
-      // ensure fields
+      // Repair any missing / malformed fields so a bad save can never block entry.
+      if (!Array.isArray(p.position) || p.position.length < 3 ||
+          !p.position.every((n) => typeof n === 'number' && isFinite(n))) {
+        p.position = [0, 0, 25];
+      }
+      if (typeof p.rotation !== 'number' || !isFinite(p.rotation)) p.rotation = 0;
+      p.name = p.name || 'Player';
       p.ownedPropertyIds = p.ownedPropertyIds || [];
       p.ownedVehicleIds = p.ownedVehicleIds || [];
       p.inventory = p.inventory || [];
+      p.needs = p.needs || { hunger: 80, energy: 90, hygiene: 85 };
+      p.stats = p.stats || { level: 1, xp: 0, xpNext: 100, reputation: 50 };
+      p.wallet = p.wallet || { cash: 25000, bank: 50000 };
+      this.profile = p;
       this.player.setAppearance(p.skin, p.outfit, p.hair);
       this.player.name = p.name;
       this.player.setPosition(p.position[0], p.position[1], p.position[2]);
