@@ -4,6 +4,8 @@ import { Game } from './core/Game';
 // IBADAN LIFE — entry point
 // ============================================================
 
+const BUILD = 'v1.1.0';
+
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const loadFill = document.getElementById('load-fill')!;
 const loadStatus = document.getElementById('load-status')!;
@@ -14,6 +16,7 @@ const hud = document.getElementById('hud')!;
 
 const game = new Game(canvas);
 (window as any).game = game; // debug
+(window as any).__IBADAN_BUILD__ = BUILD;
 
 let ready = false;
 let bootFailed = false;
@@ -25,6 +28,28 @@ function setLoadMessage(msg: string, isError = false) {
   loadStatus.textContent = msg;
   loadStatus.style.color = isError ? '#d64545' : '';
 }
+
+// --- Diagnostics: helps confirm the build + GPU support on any device ---
+function webglStatus(): string {
+  try {
+    const c = document.createElement('canvas');
+    if (c.getContext('webgl2')) return 'WebGL2 ✓';
+    if (c.getContext('webgl') || c.getContext('experimental-webgl')) return 'WebGL1 only ✗';
+    return 'WebGL ✗';
+  } catch { return 'WebGL ?'; }
+}
+
+function addDiagBadge() {
+  const el = document.createElement('div');
+  el.id = 'build-tag';
+  el.textContent = `Build ${BUILD} · ${webglStatus()}`;
+  el.style.cssText =
+    'position:absolute;bottom:10px;left:50%;transform:translateX(-50%);' +
+    'font:11px/1.4 system-ui,sans-serif;opacity:.5;color:#9aa4b2;' +
+    'letter-spacing:.4px;pointer-events:none;white-space:nowrap;';
+  loadingScreen.appendChild(el);
+}
+addDiagBadge();
 
 async function boot() {
   try {
@@ -38,7 +63,7 @@ async function boot() {
   } catch (err) {
     bootFailed = true;
     console.error(err);
-    setLoadMessage('Failed to start: ' + (err as Error).message, true);
+    setLoadMessage('Failed to start: ' + (err as Error).message + ' · ' + webglStatus(), true);
     // Give the player a way out instead of a dead screen.
     enterBtn.classList.remove('hidden');
     enterBtn.textContent = 'Retry';
@@ -55,7 +80,6 @@ function tryEnter() {
   // Not finished loading yet — tell the player instead of doing nothing.
   if (!ready) {
     if (bootFailed) {
-      // Re-run boot on retry.
       bootFailed = false;
       enterBtn.classList.add('hidden');
       setLoadMessage('Retrying…');
@@ -68,6 +92,8 @@ function tryEnter() {
 
   entering = true;
   enterBtn.disabled = true;
+  const prevLabel = enterBtn.textContent;
+  enterBtn.textContent = 'Loading…';
 
   // Audio is best-effort: it must NEVER block entry.
   try {
@@ -91,13 +117,13 @@ function tryEnter() {
   } else {
     loadingScreen.classList.add('hidden');
     setupScreen.classList.remove('hidden');
-    // Focus the name field so the player can type immediately.
     const nameInput = document.getElementById('setup-name') as HTMLInputElement | null;
     if (nameInput) setTimeout(() => nameInput.focus(), 50);
   }
 
   entering = false;
   enterBtn.disabled = false;
+  enterBtn.textContent = prevLabel || 'ENTER IBADAN';
 }
 
 function submitSetup() {

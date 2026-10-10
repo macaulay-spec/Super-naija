@@ -52,7 +52,7 @@ export class Game {
   activeInteractables: any[] = [];
   currentVehicle: Vehicle | null = null;
   nearInteractable: any = null;
-  private dayTime = 0.28; // 0..1, 0.25 = morning
+  private dayTime = 0.40; // 0..1, 0.25 = sunrise, 0.5 = noon (start mid-morning = bright)
   private sun!: THREE.DirectionalLight;
   private hemi!: THREE.HemisphereLight;
   private ambient!: THREE.AmbientLight;
@@ -393,9 +393,9 @@ export class Game {
     const sunX = Math.cos(angle);
     this.sun.position.set(sunX * 120, Math.max(-20, sunY * 140), 40);
     const day = Math.max(0, sunY);
-    this.sun.intensity = 0.25 + day * 1.0;
-    this.hemi.intensity = 0.25 + day * 0.6;
-    this.ambient.intensity = 0.12 + day * 0.2;
+    this.sun.intensity = 0.45 + day * 0.95;
+    this.hemi.intensity = 0.5 + day * 0.5;
+    this.ambient.intensity = 0.3 + day * 0.22;
     // sky colour
     const night = new THREE.Color(0x0a0e18);
     const dawn = new THREE.Color(0xd98a4a);
