@@ -52,7 +52,7 @@ export class Game {
   activeInteractables: any[] = [];
   currentVehicle: Vehicle | null = null;
   nearInteractable: any = null;
-  private dayTime = 0.28; // 0..1, 0.25 = morning
+  private dayTime = 0.40; // 0..1, 0.25 = sunrise, 0.5 = noon (start mid-morning = bright)
   private sun!: THREE.DirectionalLight;
   private hemi!: THREE.HemisphereLight;
   private ambient!: THREE.AmbientLight;
@@ -265,11 +265,20 @@ export class Game {
       if (!raw) return false;
       const p = JSON.parse(raw) as PlayerProfile;
       if (!p || !p.id) return false;
-      this.profile = p;
-      // ensure fields
+      // Repair any missing / malformed fields so a bad save can never block entry.
+      if (!Array.isArray(p.position) || p.position.length < 3 ||
+          !p.position.every((n) => typeof n === 'number' && isFinite(n))) {
+        p.position = [0, 0, 25];
+      }
+      if (typeof p.rotation !== 'number' || !isFinite(p.rotation)) p.rotation = 0;
+      p.name = p.name || 'Player';
       p.ownedPropertyIds = p.ownedPropertyIds || [];
       p.ownedVehicleIds = p.ownedVehicleIds || [];
       p.inventory = p.inventory || [];
+      p.needs = p.needs || { hunger: 80, energy: 90, hygiene: 85 };
+      p.stats = p.stats || { level: 1, xp: 0, xpNext: 100, reputation: 50 };
+      p.wallet = p.wallet || { cash: 25000, bank: 50000 };
+      this.profile = p;
       this.player.setAppearance(p.skin, p.outfit, p.hair);
       this.player.name = p.name;
       this.player.setPosition(p.position[0], p.position[1], p.position[2]);
@@ -384,9 +393,9 @@ export class Game {
     const sunX = Math.cos(angle);
     this.sun.position.set(sunX * 120, Math.max(-20, sunY * 140), 40);
     const day = Math.max(0, sunY);
-    this.sun.intensity = 0.25 + day * 1.0;
-    this.hemi.intensity = 0.25 + day * 0.6;
-    this.ambient.intensity = 0.12 + day * 0.2;
+    this.sun.intensity = 0.45 + day * 0.95;
+    this.hemi.intensity = 0.5 + day * 0.5;
+    this.ambient.intensity = 0.3 + day * 0.22;
     // sky colour
     const night = new THREE.Color(0x0a0e18);
     const dawn = new THREE.Color(0xd98a4a);
